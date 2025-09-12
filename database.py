@@ -22,3 +22,7 @@ Base = declarative_base()
 
 Session = sessionmaker(autocommit=False, autoflush=True, bind=engine)
 
+def get_db():
+    db = Session()
+
+    return db

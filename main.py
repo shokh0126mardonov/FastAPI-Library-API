@@ -1,8 +1,8 @@
 from typing import Annotated
 from enum import Enum
-from fastapi import FastAPI, Path, Query
+from fastapi import FastAPI, Path, Query, Depends
 from pydantic import BaseModel, Field
-from database import Base, engine, Session
+from database import Base, engine, Session, get_db
 from models import Book
 
 
@@ -14,15 +14,28 @@ Base.metadata.create_all(engine)
 @app.get("/api/books/{book_id}")
 def get_book_detail(
     # book_id: int = Path(title="bitta kitob id si", ge=1, le=1000),
-    book_id: Annotated[int, Path(title="bitta kitob id si", ge=1, le=1000)]
+    book_id: Annotated[int, Path(title="bitta kitob id si", ge=1, le=1000)],
+    db: Annotated[Session, Depends(get_db)]
 ):
-    return {"book": book_id}
+
+    result = db.query(Book).filter(Book.book_id==book_id).first()
+    if result:
+        return {
+            "id": result.book_id,
+            "title": result.title,
+            "desciption": result.description,
+            "author": result.author,
+            "genre": result.genre,
+            "pages": result.pages,
+        }
+    return {"message": "bunday kitob mavjud emas"}
 
 
 @app.get("/api/users/{username}")
 def get_user_detail(
     # username: str = Path(min_length=5, max_length=30, pattern='^[a-z0-9_-]{5,30}$')
-    username: Annotated[str, Path(min_length=5, max_length=30, pattern='^[a-z0-9_-]{5,30}$')]
+    username: Annotated[str, Path(min_length=5, max_length=30, pattern='^[a-z0-9_-]{5,30}$')],
+    db: Annotated[Session, Depends(get_db)]
 ):
     return {"username": username}
 
@@ -30,9 +43,21 @@ def get_user_detail(
 @app.get("/api/books/")
 def get_book_list(
     # author: str = Query(title="kitob muallifi", min_length=5, max_length=30)
-    author: Annotated[str, Query(title="kitob muallifi", min_length=5, max_length=30)]
+    db: Annotated[Session, Depends(get_db)],
+    author: Annotated[str | None, Query(title="kitob muallifi", min_length=5, max_length=30)] = None,
 ):
-    return {"author": author}
+    result = []
+    books = db.query(Book).all()
+    for book in books:
+        result.append({
+            "id": book.book_id,
+            "title": book.title,
+            "desciption": book.description,
+            "author": book.author,
+            "genre": book.genre,
+            "pages": book.pages,
+        })
+    return result
 
 
 class Genre(str, Enum):
@@ -55,9 +80,9 @@ class BookCreate(BaseModel):
 
 @app.post("/api/books/")
 def create_book(
-    book_data: BookCreate
+    book_data: BookCreate,
+    db: Annotated[Session, Depends(get_db)]
 ):
-    db = Session()
 
     book = Book(
         title=book_data.title,
