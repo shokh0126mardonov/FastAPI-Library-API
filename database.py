@@ -1,10 +1,5 @@
-from sqlalchemy import (
-    create_engine,
-    URL,
-)
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-
+from sqlalchemy import create_engine, URL
+from sqlalchemy.orm import declarative_base, sessionmaker
 import config
 
 DATABASE_URL = URL.create(
@@ -24,5 +19,7 @@ Session = sessionmaker(autocommit=False, autoflush=True, bind=engine)
 
 def get_db():
     db = Session()
-
-    return db
+    try:
+        yield db
+    finally:
+        db.close()
